@@ -126,7 +126,11 @@ int main(int argc, char *argv[]) {
 
 	JOBOBJECT_EXTENDED_LIMIT_INFORMATION jeli;
 	ZeroMemory(&jeli, sizeof(jeli));
-	jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+	// Breakaway required before a child can use CREATE_BREAKAWAY_FROM_JOB.
+	// If we don't do this, the job the editor is part of and the child processes that don't use the terminal
+	// are all grouped together, and the terminal hangs on exit (if launched from there),
+	// waiting for those unrelated child processes to complete.
+	jeli.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE | JOB_OBJECT_LIMIT_BREAKAWAY_OK;
 
 	if (!SetInformationJobObject(job_handle, JobObjectExtendedLimitInformation, &jeli, sizeof(jeli))) {
 		wprintf(L"SetInformationJobObject(ExtendedLimitInformation) failed, error %d\n", GetLastError());

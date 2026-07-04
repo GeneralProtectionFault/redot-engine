@@ -82,6 +82,7 @@
 #endif
 
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <poll.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
@@ -116,10 +117,6 @@
 #define UNIX_GET_ENTROPY
 #endif
 
-#if !defined(UNIX_GET_ENTROPY) && !defined(NO_URANDOM)
-#include <fcntl.h>
-#endif
-
 /// Clock Setup function (used by get_ticks_usec)
 static uint64_t _clock_start = 0;
 #if defined(__APPLE__)
@@ -148,6 +145,11 @@ struct sigaction old_action;
 
 static void handle_interrupt(int sig) {
 	if (!EngineDebugger::is_active()) {
+		// initialize_debugging() remaps SIGINT to this custom handler
+		// On shutdown (this code block, as the debugger will be inactive),
+		// this needs to replace the original SIGINT (OS signal)
+		sigaction(SIGINT, &old_action, nullptr);
+		raise(sig);
 		return;
 	}
 
@@ -968,6 +970,20 @@ Error OS_Unix::create_process(const String &p_path, const List<String> &p_argume
 		// Create a new session-ID so parent won't wait for it.
 		// This ensures the process won't go zombie at the end.
 		setsid();
+
+		// If launched from the terminal, all child processes automatically get tied to the terminal,
+		// even though they aren't writing to it.
+		// This immediately detaches them.  If we don't do this, the terminal will hang when the editor exits,
+		// because it's waiting on those processes that have nothing to do with it.
+		int devnull = ::open("/dev/null", O_RDWR);
+		if (devnull >= 0) {
+			::dup2(devnull, STDIN_FILENO);
+			::dup2(devnull, STDOUT_FILENO);
+			::dup2(devnull, STDERR_FILENO);
+			if (devnull > STDERR_FILENO) {
+				::close(devnull);
+			}
+		}
 
 		Vector<CharString> cs;
 		cs.push_back(p_path.utf8());

@@ -5269,4 +5269,5 @@ void Main::cleanup(bool p_force) {
 	OS::get_singleton()->benchmark_dump();
 
 	OS::get_singleton()->finalize_core();
+	print_verbose("DIAG: Main::cleanup() complete, returning to platform main");
 }

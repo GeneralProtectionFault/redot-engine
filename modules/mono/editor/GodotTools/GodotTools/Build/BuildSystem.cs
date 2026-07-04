@@ -173,6 +173,10 @@ namespace GodotTools.Build
             arguments.Add("-c");
             arguments.Add(buildInfo.Configuration);
 
+            // This prevents keeping persistent workers for the build process.  It would fix the .console version of the .exe
+            // not returning control of the terminal if a .NET build is performed, but that means forfeiting the speed advantage.
+            // if (OperatingSystem.IsWindows()) arguments.Add("-nodeReuse:false");
+
             // Verbosity
             AddVerbosityArguments(buildInfo, arguments, editorSettings);
 
@@ -202,10 +206,10 @@ namespace GodotTools.Build
             if (!buildInfo.Restore)
                 arguments.Add("--no-restore");
 
-            // Incremental or rebuild
-            // TODO: Not supported in `dotnet publish` (https://github.com/dotnet/sdk/issues/11099)
-            // if (buildInfo.Rebuild)
-            //     arguments.Add("--no-incremental");
+            /// Incremental or rebuild
+            /// @todo Not supported in `dotnet publish` (https://github.com/dotnet/sdk/issues/11099)
+            /// if (buildInfo.Rebuild)
+            ///     arguments.Add("--no-incremental");
 
             // Configuration
             arguments.Add("-c");
@@ -218,6 +222,10 @@ namespace GodotTools.Build
             // Self-published
             arguments.Add("--self-contained");
             arguments.Add("true");
+
+            // This prevents keeping persistent workers for the build process.  It would fix the .console version of the .exe
+            // not returning control of the terminal if a .NET build is performed, but that means forfeiting the speed advantage.
+            // if (OperatingSystem.IsWindows()) arguments.Add("-nodeReuse:false");
 
             // Verbosity
             AddVerbosityArguments(buildInfo, arguments, editorSettings);

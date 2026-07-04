@@ -3195,7 +3195,7 @@ void EditorHelp::regenerate_script_doc_cache() {
 }
 
 void EditorHelp::_finish_regen_script_doc_thread(void *p_udata) {
-	loader_thread.wait_to_finish();
+	// loader_thread.wait_to_finish();
 	_process_postponed_docs();
 	_script_docs_loaded.set();
 
@@ -3376,7 +3376,8 @@ void EditorHelp::update_doc() {
 }
 
 void EditorHelp::cleanup_doc() {
-	_wait_for_thread();
+	_wait_for_thread(loader_thread); // Prevent edge case:  loader_thread calls worker_thread, if it's mid execution, it could do so after the waiting for worker_thread
+	_wait_for_thread(worker_thread); // worker_thread may have been started by loader_thread
 	memdelete(doc);
 	doc = nullptr;
 }

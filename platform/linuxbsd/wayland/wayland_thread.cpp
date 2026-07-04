@@ -4902,11 +4902,17 @@ void WaylandThread::destroy() {
 	if (wl_display && events_thread.is_started()) {
 		thread_data.thread_done.set();
 
-		// By sending a roundtrip message we're unblocking the polling thread so that
-		// it can realize that it's done and also handle every event that's left.
-		wl_display_roundtrip(wl_display);
+		// Queue a sync request and flush it directly to the compositor.
+		// wl_display_roundtrip() (which calls wayland_display_dispatch()) cannot be used here because it needs to acquire
+		// "prepare read" state (see wayland_thread.cpp), which the events thread already holds while blocked in poll().
+		// Use wl_display_flush() instead
+		struct wl_callback *sync_callback = wl_display_sync(wl_display);
+		wl_display_flush(wl_display);
 
 		events_thread.wait_to_finish();
+		if (sync_callback) {
+			wl_callback_destroy(sync_callback);
+		}
 	}
 
 	for (KeyValue<DisplayServer::WindowID, WindowState> &pair : windows) {

@@ -68,6 +68,10 @@ extern "C" const char *pck_section_dummy_call() {
 #endif
 
 int main(int argc, char *argv[]) {
+	atexit([]() {
+		fprintf(stderr, "atexit fired — now in global destructor phase\n");
+		fflush(stderr);
+	});
 #if defined(__x86_64) || defined(__x86_64__)
 	int cpuinfo[4];
 	__cpuid(cpuinfo, 0x01);
@@ -122,6 +126,7 @@ int main(int argc, char *argv[]) {
 		os.set_exit_code(EXIT_FAILURE);
 	}
 	Main::cleanup();
+	fprintf(stderr, "Main::cleanup() returned in platform main (Linux)\n");
 
 	if (ret) { // Previous getcwd was successful
 		if (chdir(cwd) != 0) {
@@ -130,5 +135,6 @@ int main(int argc, char *argv[]) {
 	}
 	free(cwd);
 
+	fprintf(stderr, "Linux main() about to return\n");
 	return os.get_exit_code();
 }

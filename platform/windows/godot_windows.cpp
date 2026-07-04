@@ -100,12 +100,14 @@ int widechar_main(int argc, wchar_t **argv) {
 		os.set_exit_code(EXIT_FAILURE);
 	}
 	Main::cleanup();
+	fprintf(stderr, "DIAG: Main::cleanup() returned in platform main (Windows)\n");
 
 	for (int i = 0; i < argc; ++i) {
 		delete[] argv_utf8[i];
 	}
 	delete[] argv_utf8;
 
+	fprintf(stderr, "DIAG: Windows main() about to return\n");
 	return os.get_exit_code();
 }
 

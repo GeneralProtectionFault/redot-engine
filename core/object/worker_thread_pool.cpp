@@ -229,7 +229,9 @@ void WorkerThreadPool::_thread_function(void *p_user) {
 
 void WorkerThreadPool::_post_tasks(Task **p_tasks, uint32_t p_count, bool p_high_priority, MutexLock<BinaryMutex> &p_lock, bool p_pump_task) {
 	// Avoid calling pump tasks or low priority tasks from the calling thread.
-	bool process_on_calling_thread = threads.is_empty() && !p_pump_task;
+	// Also fall back to calling thread during shutdown (RUNLEVEL_EXIT_LANGUAGES/RUNLEVEL_EXIT) to avoid possible deadlock.
+	// We don't want to add tasks to worker threads during shutdown.
+	bool process_on_calling_thread = (threads.is_empty() || runlevel == RUNLEVEL_EXIT_LANGUAGES || runlevel == RUNLEVEL_EXIT) && !p_pump_task;
 	if (process_on_calling_thread) {
 		p_lock.temp_unlock();
 		for (uint32_t i = 0; i < p_count; i++) {
@@ -237,10 +239,6 @@ void WorkerThreadPool::_post_tasks(Task **p_tasks, uint32_t p_count, bool p_high
 		}
 		p_lock.temp_relock();
 		return;
-	}
-
-	while (runlevel == RUNLEVEL_EXIT_LANGUAGES) {
-		control_cond_var.wait(p_lock);
 	}
 
 	uint32_t to_process = 0;

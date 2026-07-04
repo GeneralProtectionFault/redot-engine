@@ -236,6 +236,10 @@ BOOL WINAPI HandlerRoutine(_In_ DWORD dwCtrlType) {
 
 	switch (dwCtrlType) {
 		case CTRL_C_EVENT:
+			// Only intercept Ctrl+C when debugging a game, not when the editor itself is running.
+            if (Engine::get_singleton()->is_editor_hint()) {
+                return FALSE;
+            }
 			EngineDebugger::get_script_debugger()->set_depth(-1);
 			EngineDebugger::get_script_debugger()->set_lines_left(1);
 			return TRUE;
@@ -1367,7 +1371,7 @@ Dictionary OS_Windows::execute_with_pipe(const String &p_path, const List<String
 		ERR_FAIL_V(ret);
 	}
 
-	DWORD creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT;
+	DWORD creation_flags = NORMAL_PRIORITY_CLASS | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT | CREATE_BREAKAWAY_FROM_JOB;
 
 	Char16String current_dir_name;
 	size_t str_len = GetCurrentDirectoryW(0, nullptr);
