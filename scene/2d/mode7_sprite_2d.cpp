@@ -336,10 +336,7 @@ void Mode7Sprite2D::set_mode7_global_rotation(real_t p_radians) {
 		_mode7_material->set_shader_parameter("mode7_global_rotation", p_radians);
 		// When follow is enabled, sync both horizon mask tilts to the global rotation.
 		if (mode7_follow_horizon_tilts) {
-			mode7_top_horizon_mask_tilt = p_radians;
-			mode7_bottom_horizon_mask_tilt = p_radians;
-			_mode7_material->set_shader_parameter("mode7_top_horizon_mask_tilt", p_radians);
-			_mode7_material->set_shader_parameter("mode7_bottom_horizon_mask_tilt", p_radians);
+			_mode7_sync_followed_tilts();
 		}
 		queue_redraw();
 	}
@@ -430,25 +427,46 @@ real_t Mode7Sprite2D::get_mode7_bottom_horizon_mask_tilt() const {
 
 // ── Follow horizon tilts ───────────────────────────────────────────
 
+void Mode7Sprite2D::_mode7_sync_followed_tilts() {
+	real_t effective = mode7_global_rotation + mode7_follow_horizon_tilt_offset;
+	mode7_top_horizon_mask_tilt = effective;
+	mode7_bottom_horizon_mask_tilt = effective;
+	if (mode7_enabled && _mode7_material.is_valid()) {
+		_mode7_material->set_shader_parameter("mode7_top_horizon_mask_tilt", effective);
+		_mode7_material->set_shader_parameter("mode7_bottom_horizon_mask_tilt", effective);
+	}
+}
+
 void Mode7Sprite2D::set_mode7_follow_horizon_tilts(bool p_enabled) {
 	if (mode7_follow_horizon_tilts == p_enabled) {
 		return;
 	}
 	mode7_follow_horizon_tilts = p_enabled;
-	// When enabling, immediately sync tilts to the current global rotation.
+	// When enabling, immediately sync tilts to the current global rotation (+ offset).
 	if (mode7_follow_horizon_tilts) {
-		mode7_top_horizon_mask_tilt = mode7_global_rotation;
-		mode7_bottom_horizon_mask_tilt = mode7_global_rotation;
-		if (mode7_enabled && _mode7_material.is_valid()) {
-			_mode7_material->set_shader_parameter("mode7_top_horizon_mask_tilt", mode7_global_rotation);
-			_mode7_material->set_shader_parameter("mode7_bottom_horizon_mask_tilt", mode7_global_rotation);
-		}
+		_mode7_sync_followed_tilts();
 	}
 	queue_redraw();
 }
 
 bool Mode7Sprite2D::is_mode7_follow_horizon_tilts() const {
 	return mode7_follow_horizon_tilts;
+}
+
+void Mode7Sprite2D::set_mode7_follow_horizon_tilt_offset(real_t p_radians) {
+	if (mode7_follow_horizon_tilt_offset == p_radians) {
+		return;
+	}
+	mode7_follow_horizon_tilt_offset = p_radians;
+	// Push the updated effective tilt to the shader when follow is active.
+	if (mode7_follow_horizon_tilts) {
+		_mode7_sync_followed_tilts();
+	}
+	queue_redraw();
+}
+
+real_t Mode7Sprite2D::get_mode7_follow_horizon_tilt_offset() const {
+	return mode7_follow_horizon_tilt_offset;
 }
 
 void Mode7Sprite2D::set_mode7_enabled(bool p_enabled) {
@@ -655,6 +673,8 @@ void Mode7Sprite2D::_bind_methods() {
 	// Follow horizon tilts
 	ClassDB::bind_method(D_METHOD("set_mode7_follow_horizon_tilts", "enabled"), &Mode7Sprite2D::set_mode7_follow_horizon_tilts);
 	ClassDB::bind_method(D_METHOD("is_mode7_follow_horizon_tilts"), &Mode7Sprite2D::is_mode7_follow_horizon_tilts);
+	ClassDB::bind_method(D_METHOD("set_mode7_follow_horizon_tilt_offset", "radians"), &Mode7Sprite2D::set_mode7_follow_horizon_tilt_offset);
+	ClassDB::bind_method(D_METHOD("get_mode7_follow_horizon_tilt_offset"), &Mode7Sprite2D::get_mode7_follow_horizon_tilt_offset);
 
 	// -------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -682,6 +702,9 @@ void Mode7Sprite2D::_bind_methods() {
 		"set_mode7_bottom_horizon_mask_tilt", "get_mode7_bottom_horizon_mask_tilt");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "mode7_follow_horizon_tilts"),
 		"set_mode7_follow_horizon_tilts", "is_mode7_follow_horizon_tilts");
+	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "mode7_follow_horizon_tilt_offset",
+					 PROPERTY_HINT_RANGE, "-360,360,0.1,radians_as_degrees"),
+		"set_mode7_follow_horizon_tilt_offset", "get_mode7_follow_horizon_tilt_offset");
 
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "mode7_enabled", PROPERTY_HINT_GROUP_ENABLE), "set_mode7_enabled", "is_mode7_enabled");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "mode7_scanline_overrides",

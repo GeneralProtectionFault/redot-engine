@@ -59,6 +59,9 @@ class Mode7Sprite2D : public Sprite2D {
 	void _mode7_rebuild_scanline_texture();
 	void _on_mode7_override_changed();
 
+	// Syncs both horizon mask tilts to global_rotation + offset (when follow is on).
+	void _mode7_sync_followed_tilts();
+
 	bool mode7_tiling = false;
 	RS::CanvasItemTextureRepeat _saved_texture_repeat = RS::CANVAS_ITEM_TEXTURE_REPEAT_DEFAULT;
 
@@ -75,6 +78,11 @@ class Mode7Sprite2D : public Sprite2D {
 	// When true, both horizon mask tilts are automatically synced to match
 	// mode7_global_rotation whenever it changes, preserving the visual effect.
 	bool mode7_follow_horizon_tilts = false;
+
+	// Additive offset applied on top of the followed global rotation when
+	// mode7_follow_horizon_tilts is enabled. Lets you fine-tune the horizon
+	// angle (e.g., airship banking) independently of turn direction.
+	real_t mode7_follow_horizon_tilt_offset = 0.0f;
 
 	// Region follow target: shift region_rect each physics frame so the Mode 7 viewport
 	// "follows" another Node2D while preserving its size/aspect/etc.
@@ -130,6 +138,8 @@ public:
 	/// @{
 	void set_mode7_follow_horizon_tilts(bool p_enabled);
 	bool is_mode7_follow_horizon_tilts() const;
+	void set_mode7_follow_horizon_tilt_offset(real_t p_radians);
+	real_t get_mode7_follow_horizon_tilt_offset() const;
 	/// @}
 
 	Mode7Sprite2D();
