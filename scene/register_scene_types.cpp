@@ -191,6 +191,7 @@
 #include "scene/2d/mesh_instance_2d.h"
 #include "scene/2d/mode7_scanline_override.h"
 #include "scene/2d/mode7_sprite_2d.h"
+#include "scene/2d/mode7_tile_map_layer.h"
 #include "scene/2d/multimesh_instance_2d.h"
 #include "scene/2d/parallax_2d.h"
 #include "scene/2d/path_2d.h"
@@ -971,6 +972,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(TileMapPattern);
 	GDREGISTER_CLASS(TileData);
 	GDREGISTER_CLASS(TileMapLayer);
+	GDREGISTER_CLASS(Mode7TileMapLayer);
 	GDREGISTER_CLASS(Parallax2D);
 	GDREGISTER_CLASS(RemoteTransform2D);
 

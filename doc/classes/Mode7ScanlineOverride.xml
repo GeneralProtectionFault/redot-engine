@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Mode7ScanlineOverride" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		A resource that holds per-scanline transform data for Mode 7 perspective rendering.
+	</brief_description>
+	<description>
+		A [Resource] used by [Mode7Sprite2D] (and indirectly [Mode7TileMapLayer]) to store one entry in the per-scanline "scanline table" that drives Mode 7-style perspective/rotation effects.
+
+		Each instance encodes a single transform row: a 2x2 affine matrix (rotation + scale + skew), a translation offset, and a pivot point. The interpolation mode ([member interpolation]) determines how adjacent rows are blended in the shader.
+
+		The transforms are stored canonically as a [Transform2D], but you can also read/write decomposed rotation, scale, and skew properties for convenience.
+	</description>
+	<members>
+		<member name="transform" type="Transform2D" setter="set_transform" getter="get_transform" default="Transform2D()">
+			The canonical 2x2 affine matrix (columns 0 and 1) plus translation (column 2). Decomposed properties ([member rotation], [member scale], [member skew]) all read through this.
+		</member>
+		<member name="rotation" type="float" setter="set_rotation" getter="get_rotation">
+			Rotation in radians, decomposed from [member transform].
+		</member>
+		<member name="scale" type="Vector2" setter="set_scale" getter="get_scale">
+			Scale factor (inverted internally), decomposed from [member transform]. Values below 0.1 are clamped to prevent division-by-zero artifacts.
+		</member>
+		<member name="skew" type="float" setter="set_skew" getter="get_skew">
+			Skew in radians, decomposed from [member transform].
+		</member>
+		<member name="pivot" type="Vector2" setter="set_pivot" getter="get_pivot" default="(0.5, 0.5)">
+			The vanishing point (in normalized 0..1 texture UV space) around which the transform is applied. Defaults to center (0.5, 0.5).
+		</member>
+		<member name="interpolation" type="Mode7ScanlineOverride.InterpolationMode" setter="set_interpolation" getter="get_interpolation" enum="Mode7ScanlineOverride.InterpolationMode">
+			How the shader blends this entry with its neighbors:
+			- [constant Mode7ScanlineOverride.INTERPOLATION_NONE]: Nearest-neighbor snap (each row uses exactly one entry's transform).
+			- [constant Mode7ScanlineOverride.INTERPOLATION_LERP]: Linear interpolation between adjacent entries.
+			- [constant Mode7ScanlineOverride.INTERPOLATION_PROJECTION]: Perspective projection via inverse-depth interpolation, using entry[0] as top/horizon and the last entry as bottom/close anchor.
+		</member>
+	</members>
+	<constants>
+		<constant name="INTERPOLATION_NONE" value="0" enum="InterpolationMode">
+			Nearest-neighbor: snap to this entry's transform for its UV band. No blending between rows.
+		</constant>
+		<constant name="INTERPOLATION_LERP" value="1" enum="InterpolationMode">
+			Linear interpolation between adjacent entries in the override array.
+		</constant>
+		<constant name="INTERPOLATION_PROJECTION" value="2" enum="InterpolationMode">
+			Perspective projection via per-scanline inverse-depth interpolation. Uses entry[0] as top/horizon and entry[last] as bottom/close anchor.
+		</constant>
+	</constants>
+</class>

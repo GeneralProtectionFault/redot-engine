@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Mode7Sprite2D" inherits="Sprite2D" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		A Sprite2D node that applies SNES Mode 7-style per-scanline perspective and rotation effects.
+	</brief_description>
+	<description>
+		Extends [Sprite2D] with a canvas_item shader that applies per-scanline affine transforms, global rotation, and horizon masking to reproduce the famous SNES Mode 7 effect (used in games like Super Mario Kart).
+
+		The warp is driven by an array of [Mode7ScanlineOverride] resources ([member mode7_scanline_overrides]), each encoding a 2x2 affine matrix + translation + pivot for one horizontal band of the output. The shader interpolates between adjacent entries per-scanline using None, Lerp, or Projection modes.
+
+		[b]Horizon masks:[/b] Optional top and bottom transparency regions with adjustable amount (0..1 fraction) and tilt angle. Both can be independently controlled, or synced to [member mode7_global_rotation] via [member mode7_follow_horizon_tilts].
+
+		[b]Region follow:[/b] When a [Node2D] target is assigned to [member mode7_region_follow_target], the sprite's region_rect scrolls each physics frame so the Mode 7 viewport tracks the target while preserving its size and aspect.
+
+		This class is the building block used internally by [Mode7TileMapLayer] for tilemap-based Mode 7 rendering.
+	</description>
+	<methods>
+	</methods>
+	<members>
+		<member name="mode7_enabled" type="bool" setter="set_mode7_enabled" getter="is_mode7_enabled" default="false">
+			Enable/disable Mode 7 shader effects. When [code]false[/code], the sprite renders normally with no overhead. Acts as a group enable — all other [code]mode7_[/code] properties only take effect when this is [code]true[/code].
+		</member>
+		<member name="mode7_scanline_overrides" type="Array[Mode7ScanlineOverride]" setter="set_mode7_scanline_overrides" getter="get_mode7_scanline_overrides">
+			Array of per-scanline transform entries. Each entry defines one row in the scanline table texture. The shader samples this table per-fragment to apply the Mode 7 warp. If empty, a default identity entry is created automatically on enable.
+		</member>
+		<member name="mode7_tiling" type="bool" setter="set_mode7_tiling" getter="is_mode7_tiling" default="false">
+			When [code]true[/code], UV coordinates that fall outside the 0..1 range wrap (repeat). When [code]false[/code] (SNES default), out-of-bounds UV becomes transparent.
+		</member>
+		<member name="mode7_global_rotation" type="float" setter="set_mode7_global_rotation" getter="get_mode7_global_rotation" default="0">
+			Global rotation angle in degrees, applied after all per-scanline transforms. Rotates the entire warped image around [member mode7_global_pivot]. When [member mode7_follow_horizon_tilts] is enabled, this also drives both horizon mask tilts.
+		</member>
+		<member name="mode7_global_pivot" type="Vector2" setter="set_mode7_global_pivot" getter="get_mode7_global_pivot" default="(0.5, 0.5)">
+			Pivot point (in normalized 0..1 UV space) around which [member mode7_global_rotation] is applied. Defaults to center.
+		</member>
+		<member name="mode7_top_horizon_mask_amount" type="float" setter="set_mode7_top_horizon_mask_amount" getter="get_mode7_top_horizon_mask_amount" default="0">
+			Fraction (0..1) of the sprite to make transparent from the top down. 0 means no masking, 1 hides the entire sprite.
+		</member>
+		<member name="mode7_top_horizon_mask_tilt" type="float" setter="set_mode7_top_horizon_mask_tilt" getter="get_mode7_top_horizon_mask_tilt" default="0">
+			Tilt angle in degrees that rotates the top horizon culling line around the center. Positive values tilt clockwise (right side drops), matching an aircraft attitude indicator.
+		</member>
+		<member name="mode7_bottom_horizon_mask_amount" type="float" setter="set_mode7_bottom_horizon_mask_amount" getter="get_mode7_bottom_horizon_mask_amount" default="0">
+			Fraction (0..1) of the sprite to make transparent from the bottom up. 0 means no masking, 1 hides the entire sprite.
+		</member>
+		<member name="mode7_bottom_horizon_mask_tilt" type="float" setter="set_mode7_bottom_horizon_mask_tilt" getter="get_mode7_bottom_horizon_mask_tilt" default="0">
+			Tilt angle in degrees that rotates the bottom horizon culling line around the center. Positive values tilt clockwise (right side drops).
+		</member>
+		<member name="mode7_follow_horizon_tilts" type="bool" setter="set_mode7_follow_horizon_tilts" getter="is_mode7_follow_horizon_tilts" default="false">
+			When [code]true[/code], both horizon mask tilts are automatically synced to [member mode7_global_rotation] (+ offset) whenever it changes. Useful for maintaining the visual effect during turns without manual adjustment.
+		</member>
+		<member name="mode7_follow_horizon_tilt_offset" type="float" setter="set_mode7_follow_horizon_tilt_offset" getter="get_mode7_follow_horizon_tilt_offset" default="0">
+			Additive offset in degrees applied on top of the followed global rotation when [member mode7_follow_horizon_tilts] is enabled. Lets you fine-tune the horizon angle (e.g., airship banking) independently of turn direction.
+		</member>
+		<member name="mode7_region_follow_target" type="NodePath" setter="set_mode7_region_follow_target" getter="get_mode7_region_follow_target">
+			Path to a [Node2D]. When set, the Mode 7 viewport (region_rect) scrolls each physics frame so it visually follows the target node while preserving its size and aspect. Only works when region mode is enabled on the sprite.
+		</member>
+	</members>
+</class>

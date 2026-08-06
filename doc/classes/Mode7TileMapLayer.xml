@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="Mode7TileMapLayer" inherits="TileMapLayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		A TileMapLayer that applies SNES Mode 7-style per-scanline perspective and rotation effects to its tile content.
+	</brief_description>
+	<description>
+		Extends [TileMapLayer] with a Mode 7 visual warp (per-scanline affine transforms, global rotation, horizon masking) while remaining a real TileMapLayer — cells, TileSet, editor paint tools, collision bodies, navigation regions, and occlusion all work completely unmodified at the node's real position.
+
+		[b]Architecture:[/b] The Mode 7 warp is achieved via composition. An internal [SubViewport] bakes this node's tile content into a single texture (flattening per-tile draw calls), which is then fed to an internal [Mode7Sprite2D] display child that applies the live Mode 7 shader every frame. The display child is a normal scene-tree descendant so it inherits parent transforms for free — moving, rotating, or scaling this node works correctly without needing a rebake.
+
+		[b]Gameplay collision/navigation/occlusion:[/b] These come from THIS SAME node at its real, un-warped position. Mode 7's warp is non-affine and cannot be exactly matched by bent colliders or navigation polygons. Physics and navigation must use this node's true coordinates.
+
+		[b][b]Setup requirement — Viewport visibility layer:[/b][/b]
+		The consuming project's main/game [Viewport] must exclude visibility bit 31 from its [code]canvas_cull_mask[/code] so the real, unwarped tiles do not double-render behind the warped display. Add this to your entering-tree code:
+		[codeblocks]
+		[gdscript]
+		func _ready():
+			get_viewport().set_canvas_cull_mask_bit(31, false)
+		[/gdscript]
+		[csharp]
+		public override void _Ready()
+		{
+			GetViewport().SetCanvasCullMaskBit(31, false);
+		}
+		[/csharp]
+		[/codeblocks]
+		This is necessary because this node moves its real canvas item to layer 31 when Mode 7 is enabled, and the default Viewport mask (0xFFFFFFFF) would otherwise render them a second time.
+
+		[b][b]When mode7_enabled is false:[/b][/b] The display child is hidden, this node's visibility layer is restored to default (layer 0), and there is zero runtime overhead — tiles render normally.
+	</description>
+	<methods>
+		<method name="bake_mode7_texture">
+			<return type="void" />
+			<description>
+				Explicitly trigger a bake of the current tile content into the Mode 7 display texture. Available regardless of [member mode7_bake_mode]. Useful when [constant BakeMode.BAKE_MODE_MANUAL] is active, or to force an immediate update at any time.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="mode7_enabled" type="bool" setter="set_mode7_enabled" getter="is_mode7_enabled" default="false">
+			Enable/disable Mode 7 effects. When [code]false[/code], the display child is hidden, this node's visibility layer is restored to the default, and tiles render normally with zero overhead. All other [code]mode7_[/code] properties only take effect when this is [code]true[/code].
+		</member>
+		<member name="mode7_scanline_overrides" type="Array[Mode7ScanlineOverride]" setter="set_mode7_scanline_overrides" getter="get_mode7_scanline_overrides">
+			Array of per-scanline transform entries forwarded to the internal Mode 7 display. Each entry defines one row in the scanline table texture that drives the perspective warp. Forwarded verbatim to the internal [Mode7Sprite2D].
+		</member>
+		<member name="mode7_tiling" type="bool" setter="set_mode7_tiling" getter="is_mode7_tiling" default="false">
+			When [code]true[/code], UV coordinates that fall outside the 0..1 range wrap (repeat). When [code]false[/code] (SNES default), out-of-bounds UV becomes transparent. Forwarded to the internal display.
+		</member>
+		<member name="mode7_global_rotation" type="float" setter="set_mode7_global_rotation" getter="get_mode7_global_rotation" default="0">
+			Global rotation angle in degrees, applied after all per-scanline transforms. Rotates the entire warped image around [member mode7_global_pivot]. Forwarded to the internal display.
+		</member>
+		<member name="mode7_global_pivot" type="Vector2" setter="set_mode7_global_pivot" getter="get_mode7_global_pivot" default="(0.5, 0.5)">
+			Pivot point (in normalized 0..1 UV space) around which [member mode7_global_rotation] is applied. Defaults to center. Forwarded to the internal display.
+		</member>
+		<member name="mode7_top_horizon_mask_amount" type="float" setter="set_mode7_top_horizon_mask_amount" getter="get_mode7_top_horizon_mask_amount" default="0">
+			Fraction (0..1) of the output to make transparent from the top down. Forwarded to the internal display.
+		</member>
+		<member name="mode7_top_horizon_mask_tilt" type="float" setter="set_mode7_top_horizon_mask_tilt" getter="get_mode7_top_horizon_mask_tilt" default="0">
+			Tilt angle in degrees that rotates the top horizon culling line. Forwarded to the internal display.
+		</member>
+		<member name="mode7_bottom_horizon_mask_amount" type="float" setter="set_mode7_bottom_horizon_mask_amount" getter="get_mode7_bottom_horizon_mask_amount" default="0">
+			Fraction (0..1) of the output to make transparent from the bottom up. Forwarded to the internal display.
+		</member>
+		<member name="mode7_bottom_horizon_mask_tilt" type="float" setter="set_mode7_bottom_horizon_mask_tilt" getter="get_mode7_bottom_horizon_mask_tilt" default="0">
+			Tilt angle in degrees that rotates the bottom horizon culling line. Forwarded to the internal display.
+		</member>
+		<member name="mode7_follow_horizon_tilts" type="bool" setter="set_mode7_follow_horizon_tilts" getter="is_mode7_follow_horizon_tilts" default="false">
+			When [code]true[/code], both horizon mask tilts are automatically synced to [member mode7_global_rotation] (+ offset). Forwarded to the internal display.
+		</member>
+		<member name="mode7_follow_horizon_tilt_offset" type="float" setter="set_mode7_follow_horizon_tilt_offset" getter="get_mode7_follow_horizon_tilt_offset" default="0">
+			Additive offset in degrees applied on top of the followed global rotation. Forwarded to the internal display.
+		</member>
+		<member name="mode7_region_follow_target" type="NodePath" setter="set_mode7_region_follow_target" getter="get_mode7_region_follow_target">
+			Path to a [Node2D]. Drives scrolling of the baked image region so the Mode 7 viewport tracks the target while preserving its size and aspect. Forwarded to the internal display, which handles region_rect updates in physics ticks.
+		</member>
+		<member name="mode7_bake_mode" type="Mode7TileMapLayer.BakeMode" setter="set_mode7_bake_mode" getter="get_mode7_bake_mode" enum="Mode7TileMapLayer.BakeMode">
+			Controls when the tile content is baked into a single texture for Mode 7 rendering:
+			- [constant BakeMode.BAKE_MODE_MANUAL]: Only bakes when [method bake_mode7_texture] is called explicitly.
+			- [constant BakeMode.BAKE_MODE_ON_CHANGE]: Auto-bakes (debounced, at most once per frame) when tile data changes via the inherited [signal TileMapLayer.changed] signal.
+			- [constant BakeMode.BAKE_MODE_EVERY_FRAME]: The bake SubViewport updates every frame using its live ViewportTexture — no snapshotting. Best for continuously animated tile content but highest GPU cost.
+		</member>
+		<member name="mode7_bake_resolution_scale" type="float" setter="set_mode7_bake_resolution_scale" getter="get_mode7_bake_resolution_scale" default="1">
+			Multiplier (0.1..4.0) applied to the bake SubViewport's pixel size relative to the tilemap's real local-space used-rect size. Lower values reduce GPU memory and cost at the expense of visual quality. Higher values produce sharper output but use more VRAM. A value of 1.0 gives 1:1 pixel-perfect baking.
+		</member>
+		<member name="mode7_bake_margin" type="int" setter="set_mode7_bake_margin" getter="get_mode7_bake_margin" default="0">
+			Extra cell margin (0..64) added around the used-rect before baking. Useful when scanline overrides or global rotation cause sampling slightly beyond the tight bounds of painted cells, which would otherwise produce edge artifacts. Increasing this gives the shader more texture to sample from at the edges.
+		</member>
+	</members>
+	<constants>
+		<constant name="BAKE_MODE_MANUAL" value="0" enum="BakeMode">
+			Only bake on explicit call to [method bake_mode7_texture].
+		</constant>
+		<constant name="BAKE_MODE_ON_CHANGE" value="1" enum="BakeMode">
+			Auto-bake (debounced) when tile data changes. The [signal TileMapLayer.changed] signal triggers a rebake at most once per process frame.
+		</constant>
+		<constant name="BAKE_MODE_EVERY_FRAME" value="2" enum="BakeMode">
+			Live rendering — the bake SubViewport updates every frame and its ViewportTexture is fed directly to the display. No snapshotting. Highest cost, best for animated content.
+		</constant>
+	</constants>
+</class>
