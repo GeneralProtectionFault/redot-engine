@@ -61,6 +61,7 @@
 #include "audio/effects/audio_effect_spectrum_analyzer.h"
 #include "audio/effects/audio_effect_stereo_enhance.h"
 #include "audio/effects/audio_stream_generator.h"
+#include "audio/effects/audio_effect_noise_gate.h"
 #include "camera/camera_feed.h"
 #include "camera/camera_server.h"
 #include "debugger/servers_debugger.h"
@@ -228,6 +229,7 @@ void register_server_types() {
 		GDREGISTER_ABSTRACT_CLASS(AudioEffectSpectrumAnalyzerInstance);
 
 		GDREGISTER_CLASS(AudioEffectCapture);
+		GDREGISTER_CLASS(AudioEffectNoiseGate);
 
 #ifndef DISABLE_DEPRECATED
 		GDREGISTER_CLASS(AudioEffectLimiter);
